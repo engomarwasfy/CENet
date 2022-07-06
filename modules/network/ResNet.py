@@ -41,9 +41,7 @@ class Final_Model(nn.Module):
     def forward(self, x):
         middle_feature_maps = self.backend(x)
 
-        semantic_output = self.semantic_head(middle_feature_maps)
-
-        return semantic_output
+        return self.semantic_head(middle_feature_maps)
 
 
 class BasicBlock(nn.Module):
@@ -140,14 +138,31 @@ class ResNet_34(nn.Module):
                     conv1x1(self.inplanes, planes * block.expansion, stride)
                 )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, if_BN=self.if_BN))
+        layers = [
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                if_BN=self.if_BN,
+            )
+        ]
+
         self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                if_BN=self.if_BN))
+        layers.extend(
+            block(
+                self.inplanes,
+                planes,
+                groups=self.groups,
+                base_width=self.base_width,
+                dilation=self.dilation,
+                if_BN=self.if_BN,
+            )
+            for _ in range(1, blocks)
+        )
 
         return nn.Sequential(*layers)
 
@@ -182,20 +197,14 @@ class ResNet_34(nn.Module):
 
             res_4 = self.aux_head3(res_4)
             res_4 = F.softmax(res_4, dim=1)
-
 #             res_2 = self.aux_head1(x_2)
 #             res_2 = F.softmax(x_2, dim=1)
-
 #             res_3 = self.aux_head2(x_3)
 #             res_3 = F.softmax(x_3, dim=1)
-
 #             res_4 = self.aux_head3(x_4)
 #             res_4 = F.softmax(x_4, dim=1)
 
-        if self.aux:
-            return [out, res_2, res_3, res_4]
-        else:
-            return out
+        return [out, res_2, res_3, res_4] if self.aux else out
 
 
 
@@ -207,7 +216,7 @@ if __name__ == "__main__":
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Number of parameters: ", pytorch_total_params / 1000000, "M")
     time_train = []
-    for i in range(20):
+    for _ in range(20):
         inputs = torch.randn(1, 5, 64, 2048).cuda()
         model.eval()
         with torch.no_grad():

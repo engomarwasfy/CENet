@@ -44,7 +44,7 @@ class HarDBlock_v2(nn.Module):
                 link.append(k)
                 if i > 0:
                     out_channels *= grmul
-        out_channels = int(int(out_channels + 1) / 2) * 2
+        out_channels = int(out_channels + 1) // 2 * 2
         in_channels = 0
         for i in link:
             ch, _, _ = self.get_link(i, base_ch, growth_rate, grmul)
@@ -88,23 +88,18 @@ class HarDBlock_v2(nn.Module):
         # self.res = []
         for layer in range(len(self.layers)):
             link = self.links[layer]
-            tin = []
-            for i in link:
-                tin.append(layers_[i])
-
+            tin = [layers_[i] for i in link]
             out = self.layers[layer](tin)
             # self.res.append(out)
             layers_.append(out)
         t = len(layers_)
-        out_ = []
-        for i in range(t):
-            if (i == 0 and self.keepBase) or \
-                    (i == t - 1) or (i % 2 == 1):
-                out_.append(layers_[i])
-        if self.list_out:
-            return out_
-        else:
-            return torch.cat(out_, 1)
+        out_ = [
+            layers_[i]
+            for i in range(t)
+            if (i == 0 and self.keepBase) or (i == t - 1) or (i % 2 == 1)
+        ]
+
+        return out_ if self.list_out else torch.cat(out_, 1)
 
 
 class HarDBlock(nn.Module):
@@ -120,7 +115,7 @@ class HarDBlock(nn.Module):
                 link.append(k)
                 if i > 0:
                     out_channels *= grmul
-        out_channels = int(int(out_channels + 1) / 2) * 2
+        out_channels = int(out_channels + 1) // 2 * 2
         in_channels = 0
         for i in link:
             ch, _, _ = self.get_link(i, base_ch, growth_rate, grmul)
@@ -154,21 +149,17 @@ class HarDBlock(nn.Module):
         layers_ = [x]
         for layer in range(len(self.layers)):
             link = self.links[layer]
-            tin = []
-            for i in link:
-                tin.append(layers_[i])
-            if len(tin) > 1:
-                x = torch.cat(tin, 1)
-            else:
-                x = tin[0]
+            tin = [layers_[i] for i in link]
+            x = torch.cat(tin, 1) if len(tin) > 1 else tin[0]
             out = self.layers[layer](x)
             layers_.append(out)
         t = len(layers_)
-        out_ = []
-        for i in range(t):
-            if (i == 0 and self.keepBase) or \
-                    (i == t - 1) or (i % 2 == 1):
-                out_.append(layers_[i])
+        out_ = [
+            layers_[i]
+            for i in range(t)
+            if (i == 0 and self.keepBase) or (i == t - 1) or (i % 2 == 1)
+        ]
+
         out = torch.cat(out_, 1)
         return out
 
@@ -177,7 +168,6 @@ class HarDBlock(nn.Module):
 class HarDNet(nn.Module):
     def __init__(self, nclasses=20, aux=False):
         super(HarDNet, self).__init__()
-
 #         first_ch = [16, 24, 32, 48]
 #         ch_list = [64, 96, 160, 224]
 #         grmul = 1.7
@@ -223,7 +213,6 @@ class HarDNet(nn.Module):
 
             self.base.append(ConvLayer(ch, ch_list[i], kernel=1))
             ch = ch_list[i]
-
 #         self.conv_1 = ConvLayer(558, 256, kernel=3)
         self.conv_1 = ConvLayer(646, 256, kernel=3)
         self.conv_2 = ConvLayer(256, 128, kernel=3)
@@ -294,7 +283,6 @@ class HarDNet(nn.Module):
         res_5 = F.interpolate(res_5, size=size_in[2:], mode='bilinear', align_corners=True)
 
         res = [res_1, res_2, res_3, res_4, res_5]
-
 #         for i in res:
 #             print(i.shape)
 
@@ -317,10 +305,7 @@ class HarDNet(nn.Module):
             res_5 = self.aux_head3(res_5)
             res_5 = F.softmax(res_5, dim=1)
 
-        if self.aux:
-            return [out, res_3, res_4, res_5]
-        else:
-            return out
+        return [out, res_3, res_4, res_5] if self.aux else out
 
 
 

@@ -23,7 +23,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
 #         torch.backends.cudnn.deterministic = True
-        print("We use the seed: {}".format(seed))
+        print(f"We use the seed: {seed}")
     seed_torch()
 
     parser = argparse.ArgumentParser("./train.py")

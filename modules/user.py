@@ -94,17 +94,17 @@ class User():
   def infer(self):
     cnn = []
     knn = []
-    if self.split == None:
+    if self.split is None:
 
-        self.infer_subset(loader=self.parser.get_train_set(),
-                          to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+      self.infer_subset(loader=self.parser.get_train_set(),
+                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
 
-        # do valid set
-        self.infer_subset(loader=self.parser.get_valid_set(),
-                          to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-        # do test set
-        self.infer_subset(loader=self.parser.get_test_set(),
-                          to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+      # do valid set
+      self.infer_subset(loader=self.parser.get_valid_set(),
+                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+      # do test set
+      self.infer_subset(loader=self.parser.get_test_set(),
+                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
 
 
     elif self.split == 'valid':
@@ -114,11 +114,11 @@ class User():
         self.infer_subset(loader=self.parser.get_train_set(),
                         to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
     else:
-        self.infer_subset(loader=self.parser.get_test_set(),
-                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-    print("Mean CNN inference time:{}\t std:{}".format(np.mean(cnn), np.std(cnn)))
-    print("Mean KNN inference time:{}\t std:{}".format(np.mean(knn), np.std(knn)))
-    print("Total Frames:{}".format(len(cnn)))
+      self.infer_subset(loader=self.parser.get_test_set(),
+                      to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+    print(f"Mean CNN inference time:{np.mean(cnn)}\t std:{np.std(cnn)}")
+    print(f"Mean KNN inference time:{np.mean(knn)}\t std:{np.std(knn)}")
+    print(f"Total Frames:{len(cnn)}")
     print("Finished Infering")
 
     return
@@ -134,7 +134,7 @@ class User():
       torch.cuda.empty_cache()
 
     with torch.no_grad():
-      for i, (proj_in, proj_mask, _, _, path_seq, path_name, p_x, p_y, proj_range, unproj_range, _, _, _, _, npoints) in enumerate(loader):
+      for proj_in, proj_mask, _, _, path_seq, path_name, p_x, p_y, proj_range, unproj_range, _, _, _, _, npoints in loader:
         # first cut to rela size (batch size one allows it)
         p_x = p_x[0, :npoints]
         p_y = p_y[0, :npoints]
@@ -168,35 +168,8 @@ class User():
         end = time.time()
         cnn.append(res)
 
-        if self.post:
-            # knn postproc
-            unproj_argmax = self.post(proj_range,
-                                      unproj_range,
-                                      proj_argmax,
-                                      p_x,
-                                      p_y)
-#             # nla postproc
-#             proj_unfold_range, proj_unfold_pre = NN_filter(proj_range, proj_argmax)
-#             proj_unfold_range=proj_unfold_range.cpu().numpy()
-#             proj_unfold_pre=proj_unfold_pre.cpu().numpy()
-#             unproj_range = unproj_range.cpu().numpy()
-#             #  Check this part. Maybe not correct (Low speed caused by for loop)
-#             #  Just simply change from
-#             #  https://github.com/placeforyiming/IROS21-FIDNet-SemanticKITTI/blob/7f90b45a765b8bba042b25f642cf12d8fccb5bc2/semantic_inference.py#L177-L202
-#             for jj in range(len(p_x)):
-#                 py, px = p_y[jj].cpu().numpy(), p_x[jj].cpu().numpy()
-#                 if unproj_range[jj] == proj_range[py, px]:
-#                     unproj_argmax = proj_argmax[py, px]
-#                 else:
-#                     potential_label = proj_unfold_pre[0, :, py, px]
-#                     potential_range = proj_unfold_range[0, :, py, px]
-#                     min_arg = np.argmin(abs(potential_range - unproj_range[jj]))
-#                     unproj_argmax = potential_label[min_arg]
-
-        else:
-            # put in original pointcloud using indexes
-            unproj_argmax = proj_argmax[p_y, p_x]
-
+        unproj_argmax = (self.post(proj_range, unproj_range, proj_argmax, p_x,
+                                   p_y) if self.post else proj_argmax[p_y, p_x])
         # measure elapsed time
         if torch.cuda.is_available():
             torch.cuda.synchronize()

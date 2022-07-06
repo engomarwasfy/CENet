@@ -64,7 +64,7 @@ class BoundaryLoss(nn.Module):
         #     #cv2.imshow('pred_b_cls{}'.format(i), pred_bv[0][i])
         #     cv2.imwrite('pred_b_cls{}.png'.format(i), pred_bv[0][i]*255)
 
-        
+
         # reshape
 #         gt_b = gt_b[:, 1:, :, :]
 #         pred_b = pred_b[:, 1:, :, :]
@@ -80,10 +80,7 @@ class BoundaryLoss(nn.Module):
         # Boundary F1 Score
         BF1 = 2 * P * R / (P + R + 1e-7)
 
-        # summing BF1 Score for each class and average over mini-batch
-        loss = torch.mean(1 - BF1)
-
-        return loss
+        return torch.mean(1 - BF1)
 
 
 

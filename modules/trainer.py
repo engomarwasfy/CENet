@@ -21,9 +21,8 @@ from tqdm import tqdm
 
 
 def save_to_log(logdir, logfile, message):
-    f = open(logdir + '/' + logfile, "a")
-    f.write(message + '\n')
-    f.close()
+    with open(f'{logdir}/{logfile}', "a") as f:
+        f.write(message + '\n')
     return
 
 
@@ -285,7 +284,7 @@ class Trainer():
                      'scheduler': self.scheduler.state_dict()
                      }
 #             save_checkpoint(state, self.log, suffix="")
-            save_checkpoint(state, self.log, suffix=""+str(epoch))
+            save_checkpoint(state, self.log, suffix=f"{str(epoch)}")
 
             if self.info['train_iou'] > self.info['best_train_iou']:
                 save_to_log(self.log, 'log.txt', "Best mean iou in training set so far, save model!")
@@ -363,6 +362,9 @@ class Trainer():
         model.train()
 
         end = time.time()
+        # get gradient updates and weights, so I can print the relationship of
+        # their norms
+        update_ratios = []
         for i, (in_vol, proj_mask, proj_labels, _, path_seq, path_name, _, _, _, _, _, _, _, _, _) in tqdm(enumerate(train_loader), total=len(train_loader)):
             # measure data loading time
             self.data_time_t.update(time.time() - end)
@@ -370,7 +372,6 @@ class Trainer():
                 in_vol = in_vol.cuda()
             if self.gpu:
                 proj_labels = proj_labels.cuda().long()
-
 #                 proj_labels = proj_labels.unsqueeze(1).type(torch.FloatTensor)
 #                 from torch.nn import functional as F
 #                 [n, c, h, w] = proj_labels.size()
@@ -382,7 +383,6 @@ class Trainer():
 
             # compute output
             with torch.cuda.amp.autocast():
-
 #                 if self.ARCH["train"]["aux_loss"]:
 #                     [output, z2, z4, z8] = model(in_vol)
 #                     lamda = self.ARCH["train"]["lamda"]
@@ -408,7 +408,6 @@ class Trainer():
                     loss_m = criterion(torch.log(output.clamp(min=1e-8)), proj_labels) + 1.5 * self.ls(output, proj_labels.long()) + bdlosss
 
             optimizer.zero_grad()
-
 #             if self.n_gpus > 1:
 #                 idx = torch.ones(self.n_gpus).cuda()
 #                 loss_m.backward(idx)
@@ -438,26 +437,22 @@ class Trainer():
             self.batch_time_t.update(time.time() - end)
             end = time.time()
 
-            # get gradient updates and weights, so I can print the relationship of
-            # their norms
-            update_ratios = []
             for g in self.optimizer.param_groups:
                 lr = g["lr"]
 
-            if show_scans:
-                if i % self.ARCH["train"]["save_batch"] == 0:
-                    # get the first scan in batch and project points
-                    mask_np = proj_mask[0].cpu().numpy()
-                    depth_np = in_vol[0][0].cpu().numpy()
-                    pred_np = argmax[0].cpu().numpy()
-                    gt_np = proj_labels[0].cpu().numpy()
-                    out = Trainer.make_log_img(depth_np, mask_np, pred_np, gt_np, color_fn)
+            if show_scans and i % self.ARCH["train"]["save_batch"] == 0:
+                # get the first scan in batch and project points
+                mask_np = proj_mask[0].cpu().numpy()
+                depth_np = in_vol[0][0].cpu().numpy()
+                pred_np = argmax[0].cpu().numpy()
+                gt_np = proj_labels[0].cpu().numpy()
+                out = Trainer.make_log_img(depth_np, mask_np, pred_np, gt_np, color_fn)
 
-                    directory = os.path.join(self.log, "train-predictions")
-                    if not os.path.isdir(directory):
-                        os.makedirs(directory)
-                    name = os.path.join(directory, str(i) + ".png")
-                    cv2.imwrite(name, out)
+                directory = os.path.join(self.log, "train-predictions")
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                name = os.path.join(directory, f"{str(i)}.png")
+                cv2.imwrite(name, out)
 
 
             if i % self.ARCH["train"]["report_batch"] == 0:
@@ -587,7 +582,7 @@ class Trainer():
                     i=i, class_str=class_func(i), jacc=jacc))
                 save_to_log(self.log, 'log.txt', 'IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
                     i=i, class_str=class_func(i), jacc=jacc))
-                self.info["valid_classes/" + class_func(i)] = jacc
+                self.info[f"valid_classes/{class_func(i)}"] = jacc
 
 
         return acc.avg, iou.avg, losses.avg, rand_imgs

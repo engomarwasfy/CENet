@@ -286,7 +286,7 @@ class LaserScan:
     def fill_spherical(self, range_image):
         # fill in spherical image for calculating normal vector
         height, width = np.shape(range_image)[:2]
-        value_mask = np.asarray(1.0 - np.squeeze(range_image) > 0.1).astype(np.uint8)
+        value_mask = np.asarray(np.squeeze(range_image) < 0.9).astype(np.uint8)
         dt, lbl = cv2.distanceTransformWithLabels(value_mask, cv2.DIST_L1, 5, labelType=cv2.DIST_LABEL_PIXEL)
 
         with_value = np.squeeze(range_image) > 0.1
