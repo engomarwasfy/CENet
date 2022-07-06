@@ -11,8 +11,8 @@ model_path = 'xxx'   # pretrain_model
 result_path = 'xxx'
 split = 'test'
 
-ARCH = yaml.safe_load(open(model_path + "/arch_cfg.yaml", 'r'))
-DATA = yaml.safe_load(open(model_path + "/data_cfg.yaml", 'r'))
+ARCH = yaml.safe_load(open(f"{model_path}/arch_cfg.yaml", 'r'))
+DATA = yaml.safe_load(open(f"{model_path}/data_cfg.yaml", 'r'))
 
 
 if os.path.isdir(result_path):
@@ -45,8 +45,10 @@ with torch.no_grad():
             convert_relu_to_softplus(model, nn.SiLU())
 # print(model)
 
-w_dict = torch.load(model_path + "/SENet_valid_best",
-                    map_location=lambda storage, loc: storage)
+w_dict = torch.load(
+    f"{model_path}/SENet_valid_best", map_location=lambda storage, loc: storage
+)
+
 model.load_state_dict(w_dict['state_dict'], strict=True)
 
 post = None
@@ -88,10 +90,7 @@ def map(label, mapdict):
     # make learning map a lookup table
     maxkey = 0
     for key, data in mapdict.items():
-        if isinstance(data, list):
-            nel = len(data)
-        else:
-            nel = 1
+        nel = len(data) if isinstance(data, list) else 1
         if key > maxkey:
             maxkey = key
     # +100 hack making lut bigger just in case there are unknown labels

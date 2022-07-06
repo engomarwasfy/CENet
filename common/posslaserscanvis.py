@@ -107,14 +107,10 @@ class LaserScanVis:
       self.scan.colorize()
 
     # then change names
-    title = "scan " + str(self.offset) + " of " + str(len(self.scan_names)-1)
+    title = f"scan {str(self.offset)} of {str(len(self.scan_names)-1)}"
     self.canvas.title = title
     self.img_canvas.title = title
 
-    # then do all the point cloud stuff
-
-    # plot scan
-    power = 1
     # print()
     range_data = np.copy(self.scan.unproj_range)
 
@@ -142,7 +138,7 @@ class LaserScanVis:
     # plot range image
     data = np.copy(self.scan.proj_range)
     # print(data[data > 0].max(), data[data > 0].min())
-    data[data > 0] = data[data > 0]**(1 / power)
+    data[data > 0] = data[data > 0]**1
     data[data < 0] = data[data > 0].min()
     # print(data.max(), data.min())
     data = (data - data[data > 0].min()) / \
@@ -169,7 +165,7 @@ class LaserScanVis:
       if self.offset <= 0:
         self.offset = len(self.scan_names)-1
       self.update_scan()
-    elif event.key == 'Q' or event.key == 'Escape':
+    elif event.key in ['Q', 'Escape']:
       self.destroy()
 
   def draw(self, event):

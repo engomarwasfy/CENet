@@ -107,7 +107,7 @@ if __name__ == '__main__':
                               FLAGS.sequence, "velodyne")
 
     if os.path.isdir(scan_paths):
-        print("Sequence folder exists! Using sequence from %s" % scan_paths)
+        print(f"Sequence folder exists! Using sequence from {scan_paths}")
     else:
         raise TypeError("Sequence folder doesn't exist from %s! Exiting..." % scan_paths)
 
@@ -132,7 +132,7 @@ if __name__ == '__main__':
             label_paths = os.path.join(FLAGS.dataset, "sequences",
                                        FLAGS.sequence, "labels")
         if os.path.isdir(label_paths):
-            print("Labels folder exists! Using labels from %s" % label_paths)
+            print(f"Labels folder exists! Using labels from {label_paths}")
         else:
             raise TypeError("Labels folder doesn't exist from %s ! Exiting..." % label_paths)
 

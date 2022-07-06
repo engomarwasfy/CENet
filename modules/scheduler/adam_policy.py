@@ -8,39 +8,23 @@ class MyLR(_LRScheduler):
 
     def get_lr(self):
         current_epoch = int(self.current_epoch / 2)
-        if current_epoch == 0:
+        if current_epoch in {0, 11, 13}:
             c_lr = 0.0004
-        if current_epoch == 1:
+        elif current_epoch in {1, 7, 10}:
             c_lr = 0.0008
-        if current_epoch == 2:
+        elif current_epoch in {12, 14}:
+            c_lr = 0.0002
+        elif current_epoch in {2, 6, 8}:
             c_lr = 0.0012
-        if current_epoch == 3:
+        elif current_epoch in {3, 5}:
             c_lr = 0.0016
-        if current_epoch == 4:
+        elif current_epoch == 4:
             c_lr = 0.002
-        if current_epoch == 5:
-            c_lr = 0.0016
-        if current_epoch == 6:
-            c_lr = 0.0012
-        if current_epoch == 7:
-            c_lr = 0.0008
-        if current_epoch == 8:
-            c_lr = 0.0012
-        if current_epoch == 9:
+        elif current_epoch == 9:
             c_lr = 0.0006
-        if current_epoch == 10:
-            c_lr = 0.0008
-        if current_epoch == 11:
-            c_lr = 0.0004
-        if current_epoch == 12:
-            c_lr = 0.0002
-        if current_epoch == 13:
-            c_lr = 0.0004
-        if current_epoch == 14:
-            c_lr = 0.0002
         if current_epoch >= 15:
             c_lr = 0.0002
-        return [c_lr for base_lr in self.base_lrs]
+        return [c_lr for _ in self.base_lrs]
 
     # 当需要传入其他参数时，需要重新定义step 函数，如ReduceLROnPlateau方法
     def step(self, epoch=None):

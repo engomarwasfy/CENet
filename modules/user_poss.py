@@ -11,9 +11,8 @@ from postproc.KNN import KNN
 from modules.ioueval import *
 
 def save_to_log(logdir,logfile,message):
-    f = open(logdir+'/'+logfile, "a")
-    f.write(message+'\n')
-    f.close()
+    with open(f'{logdir}/{logfile}', "a") as f:
+        f.write(message+'\n')
     return
 
 class User():
@@ -99,173 +98,173 @@ class User():
 
 
   def infer(self):
-    cnn = []
-    knn = []
-    if self.split == None:
+      cnn = []
+      knn = []
+      if self.split is None:
 
-        self.infer_subset(loader=self.parser.get_train_set(),
+          self.infer_subset(loader=self.parser.get_train_set(),
+                            to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+
+          # do valid set
+          self.infer_subset(loader=self.parser.get_valid_set(),
+                            to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+          # do test set
+          self.infer_subset(loader=self.parser.get_test_set(),
+                            to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+
+
+      elif self.split == 'valid':
+          self.infer_subset(loader=self.parser.get_valid_set(),
                           to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-
-        # do valid set
-        self.infer_subset(loader=self.parser.get_valid_set(),
+      elif self.split == 'train':
+          self.infer_subset(loader=self.parser.get_train_set(),
                           to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-        # do test set
-        self.infer_subset(loader=self.parser.get_test_set(),
+      else:
+          self.infer_subset(loader=self.parser.get_test_set(),
                           to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
+      print(f"Mean CNN inference time:{np.mean(cnn)}\t std:{np.std(cnn)}")
+      print(f"Mean KNN inference time:{np.mean(knn)}\t std:{np.std(knn)}")
+      print(f"Total Frames:{len(cnn)}")
+      print("Finished Infering")
 
-
-    elif self.split == 'valid':
-        self.infer_subset(loader=self.parser.get_valid_set(),
-                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-    elif self.split == 'train':
-        self.infer_subset(loader=self.parser.get_train_set(),
-                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-    else:
-        self.infer_subset(loader=self.parser.get_test_set(),
-                        to_orig_fn=self.parser.to_original, cnn=cnn, knn=knn)
-    print("Mean CNN inference time:{}\t std:{}".format(np.mean(cnn), np.std(cnn)))
-    print("Mean KNN inference time:{}\t std:{}".format(np.mean(knn), np.std(knn)))
-    print("Total Frames:{}".format(len(cnn)))
-    print("Finished Infering")
-
-    return
+      return
 
   def infer_subset(self, loader, to_orig_fn,cnn,knn):
-    # switch to evaluate mode
-    acc = AverageMeter()
-    iou = AverageMeter()
+      # switch to evaluate mode
+      acc = AverageMeter()
+      iou = AverageMeter()
 
-    self.model.eval()
+      self.model.eval()
 
-    self.evaluator = iouEval(self.parser.get_n_classes(),
-                             self.device, self.ignore)
-    self.evaluator.reset()
+      self.evaluator = iouEval(self.parser.get_n_classes(),
+                               self.device, self.ignore)
+      self.evaluator.reset()
 
-    self.evaluator2 = iouEval(self.parser.get_n_classes(),
-                             self.device, self.ignore)
-    self.evaluator2.reset()
+      self.evaluator2 = iouEval(self.parser.get_n_classes(),
+                               self.device, self.ignore)
+      self.evaluator2.reset()
 
-    total_time=0
-    total_frames=0
-    # empty the cache to infer in high res
-    if self.gpu:
-      torch.cuda.empty_cache()
+      total_time=0
+      total_frames=0
+      # empty the cache to infer in high res
+      if self.gpu:
+        torch.cuda.empty_cache()
 
-    with torch.no_grad():
+      with torch.no_grad():
 #       end = time.time()
 
-        proj_y = torch.full([40, 1800], 0, dtype=torch.long)
-        proj_x = torch.full([40, 1800], 0, dtype=torch.long)
-        for i in range(proj_y.size(0)):
-          proj_y[i, :] = i
-        for i in range(proj_x.size(1)):
-          proj_x[:, i] = i
+          proj_y = torch.full([40, 1800], 0, dtype=torch.long)
+          proj_x = torch.full([40, 1800], 0, dtype=torch.long)
+          for i in range(proj_y.size(0)):
+            proj_y[i, :] = i
+          for i in range(proj_x.size(1)):
+            proj_x[:, i] = i
 
-        proj_y = proj_y.reshape([40 * 1800])
-        proj_x = proj_x.reshape([40 * 1800])
-        proj_x = proj_x.cuda()
-        proj_y = proj_y.cuda()
+          proj_y = proj_y.reshape([40 * 1800])
+          proj_x = proj_x.reshape([40 * 1800])
+          proj_x = proj_x.cuda()
+          proj_y = proj_y.cuda()
 
-        for i, (proj_in, proj_labels, tags, unlabels, path_seq, path_name, proj_range, unresizerange, unproj_range, _, _) in enumerate(loader):
-                # first cut to rela size (batch size one allows it)
+          for proj_in, proj_labels, tags, unlabels, path_seq, path_name, proj_range, unresizerange, unproj_range, _, _ in loader:
+              # first cut to rela size (batch size one allows it)
 
-                proj_in = proj_in.cuda()
-                unlabels = unlabels.cuda()
-                path_seq = path_seq[0]
-                path_name = path_name[0]
-                if self.post:
-                    proj_range = proj_range[0].cuda()
-                    unproj_range = unproj_range[0].cuda()
+              proj_in = proj_in.cuda()
+              unlabels = unlabels.cuda()
+              path_seq = path_seq[0]
+              path_name = path_name[0]
+              if self.post:
+                  proj_range = proj_range[0].cuda()
+                  unproj_range = unproj_range[0].cuda()
 
-                end = time.time()
-                if self.ARCH["train"]["aux_loss"]:
-                    [proj_output, x_2, x_3, x_4] = self.model(proj_in)
-                else:
-                    proj_output = self.model(proj_in)
-                proj_argmax = proj_output[0].argmax(dim=0)
+              end = time.time()
+              if self.ARCH["train"]["aux_loss"]:
+                  [proj_output, x_2, x_3, x_4] = self.model(proj_in)
+              else:
+                  proj_output = self.model(proj_in)
+              proj_argmax = proj_output[0].argmax(dim=0)
 
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                res = time.time() - end
-                cnn.append(res)
-                print("Network seq", path_seq, "scan", path_name,
-                      "in", res, "sec")
-                end = time.time()
+              if torch.cuda.is_available():
+                  torch.cuda.synchronize()
+              res = time.time() - end
+              cnn.append(res)
+              print("Network seq", path_seq, "scan", path_name,
+                    "in", res, "sec")
+              end = time.time()
 
-                self.evaluator.addBatch(proj_argmax, proj_labels.squeeze().cpu().numpy())
+              self.evaluator.addBatch(proj_argmax, proj_labels.squeeze().cpu().numpy())
 
-                # proj_argmax = torch.reshape(proj_argmax, [40*1800])
+              # proj_argmax = torch.reshape(proj_argmax, [40*1800])
         #         print(unresizerange.shape, unproj_range.shape, proj_x.shape, proj_y.shape)
-                if self.post:
-                  unproj_argmax = self.post(proj_range,
-                                            unproj_range,
-                                            proj_argmax,
-                                            proj_x,
-                                            proj_y)
+              if self.post:
+                unproj_argmax = self.post(proj_range,
+                                          unproj_range,
+                                          proj_argmax,
+                                          proj_x,
+                                          proj_y)
 
 
-                self.evaluator2.addBatch(unproj_argmax, unlabels.squeeze().cpu().numpy())
+              self.evaluator2.addBatch(unproj_argmax, unlabels.squeeze().cpu().numpy())
 
-                unproj_argmax = unproj_argmax[tags.squeeze().cpu().numpy()]
+              unproj_argmax = unproj_argmax[tags.squeeze().cpu().numpy()]
         #         print(unproj_argmax.shape)
-                # measure elapsed time
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                res = time.time() - end
-                print("KNN Infered seq", path_seq, "scan", path_name,
-                      "in", res, "sec")
-                knn.append(res)
-                # save scan
-                # get the first scan in batch and project scan
+              # measure elapsed time
+              if torch.cuda.is_available():
+                  torch.cuda.synchronize()
+              res = time.time() - end
+              print("KNN Infered seq", path_seq, "scan", path_name,
+                    "in", res, "sec")
+              knn.append(res)
+              # save scan
+              # get the first scan in batch and project scan
 
-                pred_np = unproj_argmax.cpu().numpy()
-                pred_np = pred_np.reshape((-1)).astype(np.int32)
+              pred_np = unproj_argmax.cpu().numpy()
+              pred_np = pred_np.reshape((-1)).astype(np.int32)
 
-                # map to original label
-                pred_np = to_orig_fn(pred_np)
-                # save scan
-                path = os.path.join(self.logdir, "sequences",
-                                    path_seq, "predictions", path_name)
-                pred_np.tofile(path)
+              # map to original label
+              pred_np = to_orig_fn(pred_np)
+              # save scan
+              path = os.path.join(self.logdir, "sequences",
+                                  path_seq, "predictions", path_name)
+              pred_np.tofile(path)
 
-        accuracy = self.evaluator.getacc()
-        jaccard, class_jaccard = self.evaluator.getIoU()
+          accuracy = self.evaluator.getacc()
+          jaccard, class_jaccard = self.evaluator.getIoU()
 
-        print("No KNN results:")
-        print('Acc avg {acc:.3f}\n'
-                  'IoU avg {iou:.3f}'.format(acc=accuracy, iou=jaccard))
-        save_to_log(self.logdir, 'pred.txt', "No KNN results:")
-        save_to_log(self.modeldir,'pred.txt','{split} set:\n'
-          'Acc avg {m_accuracy:.3f}\n'
-          'IoU avg {m_jaccard:.3f}'.format(split=self.split,
-                                           m_accuracy=accuracy,
-                                           m_jaccard=jaccard))
+          print("No KNN results:")
+          print('Acc avg {acc:.3f}\n'
+                    'IoU avg {iou:.3f}'.format(acc=accuracy, iou=jaccard))
+          save_to_log(self.logdir, 'pred.txt', "No KNN results:")
+          save_to_log(self.modeldir,'pred.txt','{split} set:\n'
+            'Acc avg {m_accuracy:.3f}\n'
+            'IoU avg {m_jaccard:.3f}'.format(split=self.split,
+                                             m_accuracy=accuracy,
+                                             m_jaccard=jaccard))
 
-        class_func = self.parser.get_xentropy_class_string
-        for i, jacc in enumerate(class_jaccard):
-          print('IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
-              i=i, class_str=class_func(i), jacc=jacc))
-          save_to_log(self.modeldir, 'pred.txt', 'IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
+          class_func = self.parser.get_xentropy_class_string
+          for i, jacc in enumerate(class_jaccard):
+            print('IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
                 i=i, class_str=class_func(i), jacc=jacc))
+            save_to_log(self.modeldir, 'pred.txt', 'IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
+                  i=i, class_str=class_func(i), jacc=jacc))
 
-        print("**"*10)
-        accuracy = self.evaluator2.getacc()
-        jaccard, class_jaccard = self.evaluator2.getIoU()
+          print("**"*10)
+          accuracy = self.evaluator2.getacc()
+          jaccard, class_jaccard = self.evaluator2.getIoU()
 
-        print("KNN results:")
-        print('Acc avg {acc:.3f}\n'
-            'IoU avg {iou:.3f}'.format(acc=accuracy, iou=jaccard))
-        save_to_log(self.logdir, 'pred.txt', "KNN results:")
-        save_to_log(self.modeldir,'pred.txt','{split} set:\n'
-          'Acc avg {m_accuracy:.3f}\n'
-          'IoU avg {m_jaccard:.3f}'.format(split=self.split,
-                                           m_accuracy=accuracy,
-                                           m_jaccard=jaccard))
+          print("KNN results:")
+          print('Acc avg {acc:.3f}\n'
+              'IoU avg {iou:.3f}'.format(acc=accuracy, iou=jaccard))
+          save_to_log(self.logdir, 'pred.txt', "KNN results:")
+          save_to_log(self.modeldir,'pred.txt','{split} set:\n'
+            'Acc avg {m_accuracy:.3f}\n'
+            'IoU avg {m_jaccard:.3f}'.format(split=self.split,
+                                             m_accuracy=accuracy,
+                                             m_jaccard=jaccard))
 
-        class_func = self.parser.get_xentropy_class_string
-        for i, jacc in enumerate(class_jaccard):
-          print('IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
-              i=i, class_str=class_func(i), jacc=jacc))
-          save_to_log(self.modeldir, 'pred.txt', 'IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
+          class_func = self.parser.get_xentropy_class_string
+          for i, jacc in enumerate(class_jaccard):
+            print('IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
                 i=i, class_str=class_func(i), jacc=jacc))
+            save_to_log(self.modeldir, 'pred.txt', 'IoU class {i:} [{class_str:}] = {jacc:.3f}'.format(
+                  i=i, class_str=class_func(i), jacc=jacc))
 
